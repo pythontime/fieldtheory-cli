@@ -72,3 +72,34 @@ test('getTwitterBookmarksStatus prefers newer GraphQL state over stale metadata'
     await rm(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('getTwitterBookmarksStatus uses metadata when state and meta agree on the latest sync time', async () => {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'ft-status-'));
+  process.env.FT_DATA_DIR = tmpDir;
+
+  try {
+    await writeJson(path.join(tmpDir, 'bookmarks-meta.json'), {
+      provider: 'twitter',
+      schemaVersion: 1,
+      lastIncrementalSyncAt: '2026-04-05T12:34:56Z',
+      totalBookmarks: 7,
+    });
+    await writeJson(path.join(tmpDir, 'bookmarks-backfill-state.json'), {
+      provider: 'twitter',
+      lastRunAt: '2026-04-05T12:34:56Z',
+      totalRuns: 1,
+      totalAdded: 7,
+      lastAdded: 7,
+      lastSeenIds: ['1', '2'],
+      stopReason: 'caught up to newest stored bookmark',
+    });
+
+    const status = await getTwitterBookmarksStatus();
+
+    assert.equal(status.totalBookmarks, 7);
+    assert.equal(status.lastIncrementalSyncAt, '2026-04-05T12:34:56Z');
+  } finally {
+    delete process.env.FT_DATA_DIR;
+    await rm(tmpDir, { recursive: true, force: true });
+  }
+});

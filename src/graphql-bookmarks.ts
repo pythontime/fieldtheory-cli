@@ -350,11 +350,11 @@ export function mergeRecords(
 
 function updateState(
   prev: BookmarkBackfillState,
-  input: { added: number; seenIds: string[]; stopReason: string }
+  input: { added: number; seenIds: string[]; stopReason: string; lastRunAt?: string }
 ): BookmarkBackfillState {
   return {
     provider: 'twitter',
-    lastRunAt: new Date().toISOString(),
+    lastRunAt: input.lastRunAt ?? new Date().toISOString(),
     totalRuns: prev.totalRuns + 1,
     totalAdded: prev.totalAdded + input.added,
     lastAdded: input.added,
@@ -487,7 +487,12 @@ export async function syncBookmarksGraphQL(
     lastIncrementalSyncAt: incremental ? syncedAt : previousMeta?.lastIncrementalSyncAt,
     totalBookmarks: existing.length,
   } satisfies BookmarkCacheMeta);
-  await writeJson(statePath, updateState(prevState, { added: totalAdded, seenIds: allSeenIds.slice(-20), stopReason }));
+  await writeJson(statePath, updateState(prevState, {
+    added: totalAdded,
+    seenIds: allSeenIds.slice(-20),
+    stopReason,
+    lastRunAt: syncedAt,
+  }));
 
   options.onProgress?.({
     page,

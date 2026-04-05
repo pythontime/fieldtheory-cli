@@ -228,6 +228,23 @@ export async function syncTwitterBookmarks(
   };
 }
 
+export function latestBookmarkSyncAt(
+  meta?: Pick<BookmarkCacheMeta, 'lastIncrementalSyncAt' | 'lastFullSyncAt'> | null,
+): string | null {
+  let latestValue: string | null = null;
+  let latestTs = Number.NEGATIVE_INFINITY;
+
+  for (const candidate of [meta?.lastIncrementalSyncAt, meta?.lastFullSyncAt]) {
+    if (!candidate) continue;
+    const parsed = Date.parse(candidate);
+    if (!Number.isFinite(parsed) || parsed <= latestTs) continue;
+    latestTs = parsed;
+    latestValue = candidate;
+  }
+
+  return latestValue;
+}
+
 export async function getTwitterBookmarksStatus(): Promise<BookmarkCacheMeta & { cachePath: string; metaPath: string }> {
   const cachePath = twitterBookmarksCachePath();
   const metaPath = twitterBookmarksMetaPath();
@@ -238,7 +255,7 @@ export async function getTwitterBookmarksStatus(): Promise<BookmarkCacheMeta & {
   const state = (await pathExists(statePath))
     ? await readJson<BookmarkBackfillState>(statePath)
     : undefined;
-  const metaUpdatedAt = meta?.lastIncrementalSyncAt ?? meta?.lastFullSyncAt;
+  const metaUpdatedAt = latestBookmarkSyncAt(meta);
   const graphQlStatusIsNewer = Boolean(
     state?.lastRunAt && (!metaUpdatedAt || Date.parse(state.lastRunAt) > Date.parse(metaUpdatedAt))
   );
